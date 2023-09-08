@@ -11,3 +11,4 @@
 7) https://www.eg.bucknell.edu/~csci206/riscv-converter/index.html
 8) https://www.chibialiens.com/riscv/
 9) https://danielmangum.com/posts/risc-v-bytes-intro-instruction-formats/
+10) https://stackoverflow.com/questions/2616906/how-do-i-output-coloured-text-to-a-linux-terminal
