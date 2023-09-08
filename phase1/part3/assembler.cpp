@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cctype>
 #include "Color.hpp"
-#include <regex>
 #include <boost/regex.hpp>
 #include <bitset>
 using namespace std;
@@ -19,17 +18,20 @@ const Color::Modifier blue(Color::FG_BLUE);
 const Color::Modifier cyan(Color::FG_CYAN);
 
 map<string, vector<string>> instructions;
+map<string, int> labels;
 
 class token
 {
 public:
     string type;
     vector<string> variables;
+    int position;
     token()
     {
         this->type = "test";
         vector<string> test;
         this->variables = test;
+        this->position = 0;
     }
 };
 
@@ -80,6 +82,9 @@ string instruction_to_binary(token instruction)
     string encoded = "";
     boost::regex pattern(R"((.*?)\{([^}]+)\}(.*?))");
     bool rd_exists = false;
+    if(labels[instruction.variables[instruction.variables.size()-1]] > 0) {
+        instruction.variables[instruction.variables.size()-1] = std::__cxx11::to_string(labels[instruction.variables[instruction.variables.size()-1]] - instruction.position + 4);
+    }
     for (int i = stoi(instructions[instruction.type][1]) + 1; i > 1; i--)
     {
         boost::sregex_iterator MatchitFinder(instructions[instruction.type][i].begin(), instructions[instruction.type][i].end(), pattern);
@@ -163,7 +168,15 @@ string instruction_to_binary(token instruction)
             {
                 string extractedNumber = match.str();
                 int number = stoi(extractedNumber);
-                string binary_form_of_immediate = intToBinary(stoi(instruction.variables[instruction.variables.size() - 1]), 20);
+                int check_imm_for_negative_value = stoi(instruction.variables[instruction.variables.size() - 1]);
+                bool negative_flag = false;
+                if(check_imm_for_negative_value < 0) {
+                    negative_flag = true;
+                }
+                string binary_form_of_immediate = intToBinary(abs(check_imm_for_negative_value), 20);
+                if(negative_flag) {
+                    binary_form_of_immediate[0] = '1';
+                }
                 std::vector<std::pair<int, int>> offsets;
                 std::istringstream ss(it.second);
                 std::string token;
@@ -243,9 +256,12 @@ int main()
     }
 
     /* Creating Tokens for each instruction */
+    int count = 4;
     for (auto it : RISCV_CODE)
     {
         TOKENS.push_back(tokenize(it));
+        TOKENS[TOKENS.size() - 1].position = count;
+        count += 4;
     }
 
     /* Generating Binary encoding for the tokens */
@@ -253,16 +269,29 @@ int main()
     bool success = true;
     for (auto it : TOKENS)
     {
+        if(!it.type.empty() && it.type.back() == ':') {
+            it.type.pop_back();
+            labels[it.type] = it.position;
+            continue;
+        }
         if (instructions[it.type].size() == 0)
         {
+            cout << it.type << endl;
             std::cout << red << " ERROR : INVALID INSTRUCTION " << def << endl;
             success = false;
+            break;
         }
         if (stoi(instructions[it.type][0]) != it.variables.size())
         {
             std::cout << red << " ERROR : INVALID NUMBER OF ARGUMENTS WITH " << def << "{" << blue << it.type << def << "}" << red << " INSTRUCTION " << def << endl;
+            success = false;
+            break;
         }
         BINARY.push_back(instruction_to_binary(it));
+    }
+    if (!success)
+    {
+        return 0;
     }
     std::cout << green << "SUCCESS " << def << endl;
     std::cout << cyan << "The Machine encoding of your program is as follows : " << def << endl;
