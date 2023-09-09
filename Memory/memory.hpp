@@ -11,6 +11,8 @@ public:
 
     int getValue(int key);
 
+    void PrintMemory();
+
 private:
     std::map<int, int> memoryMap; 
 };
