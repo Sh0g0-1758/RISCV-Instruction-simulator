@@ -13,6 +13,8 @@ public:
 
     uint32_t getRegisterValue(int index);
 
+    void PrintRegisters();
+
 private:
     std::array<uint32_t, 32> registerArray;
 };
