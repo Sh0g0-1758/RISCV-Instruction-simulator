@@ -6,7 +6,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
-#include "Color.hpp"
+#include "../../Tools/Color/Color.hpp"
 #include <boost/regex.hpp>
 #include <bitset>
 #include "../../Memory/memory.hpp"
@@ -88,10 +88,11 @@ string instruction_to_binary(token instruction)
     bool rd_exists = false;
     if (labels[instruction.variables[instruction.variables.size() - 1]] > 0)
     {
-        instruction.variables[instruction.variables.size() - 1] = std::__cxx11::to_string(labels[instruction.variables[instruction.variables.size() - 1]] - instruction.position + 4);
+        instruction.variables[instruction.variables.size() - 1] = std::__cxx11::to_string(labels[instruction.variables[instruction.variables.size() - 1]] - instruction.position);
     }
     if (memory[instruction.variables[instruction.variables.size() - 1]] > 0)
     {
+        cout << red << "HEY" << def << endl;
         instruction.variables[instruction.variables.size() - 1] = std::__cxx11::to_string(virtual_memory.getValue(memory[instruction.variables[instruction.variables.size() - 1]]));
     }
     for (int i = stoi(instructions[instruction.type][1]) + 1; i > 1; i--)
@@ -183,7 +184,7 @@ string instruction_to_binary(token instruction)
                 {
                     negative_flag = true;
                 }
-                string binary_form_of_immediate = intToBinary(abs(check_imm_for_negative_value), 20);
+                string binary_form_of_immediate = intToBinary(abs(check_imm_for_negative_value), number);
                 if (negative_flag)
                 {
                     binary_form_of_immediate[0] = '1';
@@ -209,7 +210,14 @@ string instruction_to_binary(token instruction)
                 {
                     for (int i = offset_it.first; i >= offset_it.second; i--)
                     {
-                        immediate_value = immediate_value + binary_form_of_immediate[i];
+                        if (i == number - 1 && negative_flag)
+                        {
+                            immediate_value = immediate_value + "1";
+                        }
+                        else
+                        {
+                            immediate_value = immediate_value + binary_form_of_immediate[i];
+                        }
                     }
                 }
                 encoded = immediate_value + encoded;
@@ -281,11 +289,17 @@ int main()
     }
 
     /* Creating Tokens for each instruction */
-    int count = 4;
+    int count = 0;
     for (auto it : RISCV_CODE)
     {
         if (!it.empty())
         {
+            if (it.back() == ':')
+            {
+                it.pop_back();
+                labels[it] = count;
+                continue;
+            }
             TOKENS.push_back(tokenize(it));
             TOKENS[TOKENS.size() - 1].position = count;
             count += 4;
@@ -328,12 +342,6 @@ int main()
                 i++;
             }
             i++;
-        }
-        if (TOKENS[i].type.back() == ':')
-        {
-            TOKENS[i].type.pop_back();
-            labels[TOKENS[i].type] = TOKENS[i].position;
-            continue;
         }
         if (instructions[TOKENS[i].type].size() == 0)
         {

@@ -1,15 +1,19 @@
 .data
-number: .word 69 # storing 69 in the memory
+number: .word 43
 
 .text
 
 main:
-lui x1,0 # adding some comments, these will not affect the result XD
-jal x0,4
-bge x1,x2,48
-jal x0,main
-lw x2,0(x0)
+addi x1,x1,7
+sw x1,34(x0)
 
-label:
-lui x2,0
-jal x0,label
+loop:
+addi x2,x2,7
+beq x1,x2,shogo
+
+skip:
+addi x4,x4,9
+
+shogo:
+addi x5,x5,69
+lw x9,34(x0)
