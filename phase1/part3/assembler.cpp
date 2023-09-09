@@ -9,6 +9,8 @@
 #include "Color.hpp"
 #include <boost/regex.hpp>
 #include <bitset>
+#include "../../Memory/memory.hpp"
+#include <iterator>
 using namespace std;
 
 const Color::Modifier red(Color::FG_RED);
@@ -19,6 +21,8 @@ const Color::Modifier cyan(Color::FG_CYAN);
 
 map<string, vector<string>> instructions;
 map<string, int> labels;
+map<string, int> memory;
+Memory virtual_memory;
 
 class token
 {
@@ -85,6 +89,10 @@ string instruction_to_binary(token instruction)
     if (labels[instruction.variables[instruction.variables.size() - 1]] > 0)
     {
         instruction.variables[instruction.variables.size() - 1] = std::__cxx11::to_string(labels[instruction.variables[instruction.variables.size() - 1]] - instruction.position + 4);
+    }
+    if (memory[instruction.variables[instruction.variables.size() - 1]] > 0)
+    {
+        instruction.variables[instruction.variables.size() - 1] = std::__cxx11::to_string(virtual_memory.getValue(memory[instruction.variables[instruction.variables.size() - 1]]));
     }
     for (int i = stoi(instructions[instruction.type][1]) + 1; i > 1; i--)
     {
@@ -253,6 +261,20 @@ int main()
         string code;
         while (getline(code_file, code))
         {
+            if (code.empty())
+            {
+                continue;
+            }
+            size_t hashPos = code.find('#');
+            if (hashPos != std::string::npos)
+            {
+                code = code.substr(0, hashPos);
+            }
+            size_t lastNonSpace = code.find_last_not_of(" \t\n\r\f\v");
+            if (lastNonSpace != std::string::npos)
+            {
+                code = code.substr(0, lastNonSpace + 1);
+            }
             RISCV_CODE.push_back(code);
         }
         code_file.close();
@@ -273,32 +295,102 @@ int main()
     /* Generating Binary encoding for the tokens */
     vector<string> BINARY;
     bool success = true;
-    for (auto it : TOKENS)
+    for (int i = 0; i < TOKENS.size(); i++)
     {
-        if (it.type.empty())
+        int memory_offset = 0;
+        if (TOKENS[i].type == ".data")
         {
-            cout << "EM{TBTEBTOBT}" << endl;
+            i++;
+            while (TOKENS[i].type != ".text")
+            {
+                size_t startPos = TOKENS[i].variables[0].find_first_of("0123456789");
+
+                if (startPos != std::string::npos)
+                {
+                    // Find the position of the first non-digit character after the number
+                    size_t endPos = TOKENS[i].variables[0].find_first_not_of("0123456789", startPos);
+
+                    // Extract the number substring
+                    std::string numberString = TOKENS[i].variables[0].substr(startPos, endPos - startPos);
+                    std::string signString = TOKENS[i].variables[0].substr(startPos - 1, 1);
+                    // Convert the number substring to an integer
+                    int number;
+                    std::istringstream(numberString) >> number;
+                    if (signString == "-")
+                    {
+                        number = 0 - number;
+                    }
+                    virtual_memory.addValue(268435456 + memory_offset, number);
+                    TOKENS[i].type.pop_back();
+                    memory[TOKENS[i].type] = 268435456 + memory_offset;
+                }
+                memory_offset += 4;
+                i++;
+            }
+            i++;
         }
-        if (it.type.back() == ':')
+        if (TOKENS[i].type.back() == ':')
         {
-            it.type.pop_back();
-            labels[it.type] = it.position;
+            TOKENS[i].type.pop_back();
+            labels[TOKENS[i].type] = TOKENS[i].position;
             continue;
         }
-        if (instructions[it.type].size() == 0)
+        if (instructions[TOKENS[i].type].size() == 0)
         {
-            cout << "the type of it givein" << it.type << endl;
+            cout << "the type of it givein" << TOKENS[i].type << endl;
             std::cout << red << " ERROR : INVALID INSTRUCTION " << def << endl;
             success = false;
             break;
         }
-        if (stoi(instructions[it.type][0]) != it.variables.size())
+
+        if (instructions[TOKENS[i].type].back() == "op{0000011}")
         {
-            std::cout << red << " ERROR : INVALID NUMBER OF ARGUMENTS WITH " << def << "{" << blue << it.type << def << "}" << red << " INSTRUCTION " << def << endl;
+            string offset_register = TOKENS[i].variables.back();
+
+            size_t openParenPos = offset_register.find('(');
+            size_t closeParenPos = offset_register.find(')');
+            std::string numericValue;
+            std::string registerName;
+            if (openParenPos != std::string::npos && closeParenPos != std::string::npos &&
+                openParenPos < closeParenPos)
+            {
+                numericValue = offset_register.substr(0, openParenPos);
+                registerName = offset_register.substr(openParenPos + 1, closeParenPos - openParenPos - 1);
+            }
+            TOKENS[i].variables.pop_back();
+            TOKENS[i].variables.push_back(registerName);
+            TOKENS[i].variables.push_back(numericValue);
+        }
+
+        if (instructions[TOKENS[i].type].back() == "op{0100011}")
+        {
+            string offset_register = TOKENS[i].variables.back();
+
+            size_t openParenPos = offset_register.find('(');
+            size_t closeParenPos = offset_register.find(')');
+            std::string numericValue;
+            std::string registerName;
+            if (openParenPos != std::string::npos && closeParenPos != std::string::npos &&
+                openParenPos < closeParenPos)
+            {
+                numericValue = offset_register.substr(0, openParenPos);
+                registerName = offset_register.substr(openParenPos + 1, closeParenPos - openParenPos - 1);
+            }
+            TOKENS[i].variables.pop_back();
+            string rs2 = TOKENS[i].variables.back();
+            TOKENS[i].variables.pop_back();
+            TOKENS[i].variables.push_back(registerName);
+            TOKENS[i].variables.push_back(rs2);
+            TOKENS[i].variables.push_back(numericValue);
+        }
+
+        if (stoi(instructions[TOKENS[i].type][0]) != TOKENS[i].variables.size())
+        {
+            std::cout << red << " ERROR : INVALID NUMBER OF ARGUMENTS WITH " << def << "{" << blue << TOKENS[i].type << def << "}" << red << " INSTRUCTION " << def << endl;
             success = false;
             break;
         }
-        BINARY.push_back(instruction_to_binary(it));
+        BINARY.push_back(instruction_to_binary(TOKENS[i]));
     }
     if (!success)
     {
