@@ -211,8 +211,7 @@ int main()
     }
 
     vector<string> instructionVector;
-    string binaryChunk;
-
+    
     while (inputFile)
     {
         char buffer[33];
@@ -223,7 +222,6 @@ int main()
     }
 
     inputFile.close();
-    int next_program_counter;
     instructionVector.pop_back();
     for (int program_counter = 0; program_counter < instructionVector.size(); program_counter++)
     {
