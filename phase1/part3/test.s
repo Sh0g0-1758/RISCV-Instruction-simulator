@@ -4,12 +4,12 @@ number: .word 43
 .text
 
 main:
-addi x1,x1,7
-sw x1,34(x0)
+addi a1,a1,7
+sw a1,34(x0)
 
 loop:
-addi x2,x2,7
-beq x1,x2,shogo
+addi a2,a2,7
+beq a1,a2,shogo
 
 skip:
 addi x4,x4,9
