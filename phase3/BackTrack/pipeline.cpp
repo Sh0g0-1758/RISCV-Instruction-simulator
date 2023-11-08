@@ -361,11 +361,6 @@ int do_alu_operation(string alu_select, int val1, int val2)
 
 void FirstStage(IFID &ifid, string instruction, int program_counter)
 {
-    cout << red << "First Stage " << def << endl;
-    if (ifid.stall)
-    {
-        return;
-    }
     ifid.change_IR(instruction);
     ifid.change_DPC((program_counter + 1));
     ifid.change_is_empty(false);
@@ -373,7 +368,6 @@ void FirstStage(IFID &ifid, string instruction, int program_counter)
 
 void SecondStage(IDEX &idex, int program_counter, IFID &ifid)
 {
-    cout << red << "Second Stage " << def << endl;
     if (ifid.is_empty)
     {
         return;
@@ -389,34 +383,21 @@ void SecondStage(IDEX &idex, int program_counter, IFID &ifid)
     idex.change_J_DPC((idex.IMM / 4) + program_counter);
     idex.change_FUNC(ifid.IR.substr(17, 3) + ifid.IR[1]);
 
-    cout << blue << "RS2 in Second Stage is  : " << idex.RS2 << def << endl;
-    cout << blue << "RS1 in Second Stage is  : " << idex.RS1 << def << endl;
-
     if ((std::string(1, idex.CW[0])) == "1")
     {
         if (virtual_register.getRegisterDirtyBit(idex.RS1) == 1)
         {
-            cout << blue << idex.RS1 << " is dirty" << def << endl;
             ifid.change_stall(true);
             return;
         }
         if (virtual_register.getRegisterDirtyBit(idex.RS2) == 1)
         {
-            cout << blue << idex.RS2 << " is dirty" << def << endl;
             ifid.change_stall(true);
-            cout << red << ifid.stall << def << endl;
             return;
         }
         idex.change_RS1(virtual_register.getRegisterValue(idex.RS1));
         idex.change_RS2(virtual_register.getRegisterValue(idex.RS2));
     }
-    // Check here brooooooooooooo pls
-    // if ((std::string(1, idex.CW[1])) == "1")
-    // {
-    //     idex.change_SecondValue(idex.IMM);
-    // }
-    // cout << red << "FirstValue : " << idex.RS1 << endl;
-    // cout << red << "SecondValue : " << idex.RS2 << endl;
     if ((std::string(1, idex.CW[6])) == "1")
     {
         virtual_register.setRegisterDirtyBit(idex.RDI, 1);
@@ -427,7 +408,6 @@ void SecondStage(IDEX &idex, int program_counter, IFID &ifid)
 
 void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid, bool &program_counter_valid, int &program_counter, int size)
 {
-    cout << red << "Third Stage " << def << endl;
     if (idex.is_empty)
     {
         return;
@@ -435,7 +415,6 @@ void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid, bool &program_counter_valid,
     int FirstValue = idex.RS1;
     int SecondValue = idex.RS2;
     exmo.change_RS2VAL(SecondValue);
-    cout << blue << "RS2 val in third stage is : " << SecondValue << def << endl;
     if ((std::string(1, idex.CW[1])) == "1")
     {
 
@@ -448,14 +427,13 @@ void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid, bool &program_counter_valid,
     exmo.RDI = idex.RDI;
     if (((std::string(1, idex.CW[8])) == "1") && ALU_ZERO_FLAG)
     {
-        program_counter = idex.J_DPC - 1;
-        ifid.change_is_empty(true);
-        idex.change_is_empty(true);
+        program_counter = idex.J_DPC - 2;
+        // ifid.change_is_empty(true);
+        // idex.change_is_empty(true);
         program_counter_valid = false;
     }
     if (program_counter < 0 || program_counter >= size)
     {
-        cout << "erroneous program counter" << program_counter << endl;
         cout << red << "ERROR : Invalid Branch/Jump Address" << def << endl;
         return;
     }
@@ -465,15 +443,12 @@ void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid, bool &program_counter_valid,
 
 void FourthStage(MOWB &mowb, EXMO &exmo, bool &program_counter_valid)
 {
-    cout << red << "Fourth Stage" << def << endl;
     if (exmo.is_empty)
     {
         return;
     }
     if ((std::string(1, exmo.CW[4])) == "1")
     {
-        cout << "RS2VAL : " << exmo.RS2VAL << endl;
-        cout << "ALUOUT : " << exmo.ALUOUT << endl;
         virtual_memory.addValue(exmo.ALUOUT, exmo.RS2VAL);
     }
     if ((std::string(1, exmo.CW[5])) == "1")
@@ -492,7 +467,6 @@ void FourthStage(MOWB &mowb, EXMO &exmo, bool &program_counter_valid)
 
 void FifthStage(MOWB mowb, IFID &ifid)
 {
-    cout << red << "Fifth Stage " << def << endl;
     if (mowb.is_empty)
     {
         return;
@@ -550,11 +524,16 @@ int main()
 
     for (int program_counter = 0; program_counter < instructionVector.size() + 4; program_counter++)
     {
-        // if (!program_counter_valid)
-        // {
-        //     program_counter--;
-        // }
-        // else
+        if (!program_counter_valid)
+        {
+            cout << red << "this is a branch instruction, please dont mind thius " << def << endl;
+            cout << program_counter << endl;
+            cout << instructionVector.size() << endl;
+            ifid = IFID();
+            idex = IDEX();
+            program_counter_valid = true;
+        }
+        else
         {
             if (program_counter < instructionVector.size())
             {
