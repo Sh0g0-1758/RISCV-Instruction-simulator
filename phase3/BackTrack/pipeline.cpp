@@ -49,6 +49,7 @@ public:
     int DPC = 0;
     std::string IR = "";
     bool is_empty = true;
+    bool stall = false;
 
     void change_DPC(int val)
     {
@@ -61,6 +62,10 @@ public:
     void change_is_empty(bool val)
     {
         is_empty = val;
+    }
+    void change_stall(bool val)
+    {
+        stall = val;
     }
 };
 
@@ -75,6 +80,7 @@ public:
     string FUNC = "";
     int RDI = 0;
     bool is_empty = true;
+    bool stall = false;
 
     void change_J_DPC(int val)
     {
@@ -108,6 +114,10 @@ public:
     {
         is_empty = val;
     }
+    void change_stall(bool val)
+    {
+        stall = val;
+    }
 };
 
 class EXMO
@@ -118,6 +128,7 @@ public:
     int RS2VAL = 0;
     int RDI = 0;
     bool is_empty = true;
+    bool stall = false;
     void change_CW(std::string val)
     {
         CW = val;
@@ -138,6 +149,10 @@ public:
     {
         is_empty = val;
     }
+    void change_stall(bool val)
+    {
+        stall = val;
+    }
 };
 
 class MOWB
@@ -148,6 +163,7 @@ public:
     int ALUOUT = 0;
     int RDI = 0;
     bool is_empty = true;
+    bool stall = false;
     void change_RDI(int val)
     {
         RDI = val;
@@ -167,6 +183,10 @@ public:
     void change_is_empty(bool val)
     {
         is_empty = val;
+    }
+    void change_stall(bool val)
+    {
+        stall = val;
     }
 };
 
@@ -356,14 +376,18 @@ int do_alu_operation(string alu_select, int val1, int val2)
 
 void FirstStage(IFID &ifid, string instruction, int program_counter)
 {
+    if (ifid.stall)
+    {
+        return;
+    }
     ifid.change_IR(instruction);
     ifid.change_DPC((program_counter + 1));
     ifid.change_is_empty(false);
 }
 
-void SecondStage(IDEX &idex, int program_counter, IFID ifid)
+void SecondStage(IDEX &idex, int program_counter, IFID &ifid)
 {
-    if (ifid.is_empty)
+    if (idex.stall || ifid.is_empty)
     {
         return;
     }
@@ -380,23 +404,35 @@ void SecondStage(IDEX &idex, int program_counter, IFID ifid)
 
     if ((std::string(1, idex.CW[0])) == "1")
     {
+        if (virtual_register.getRegisterDirtyBit(idex.RS1) == 1)
+        {
+            ifid.change_stall(true);
+            return;
+        }
         idex.change_RS1(virtual_register.getRegisterValue(idex.RS1));
     }
     if ((std::string(1, idex.CW[1])) == "0")
     {
+        if (virtual_register.getRegisterDirtyBit(idex.RS2) == 1)
+        {
+            ifid.change_stall(true);
+            return;
+        }
         idex.change_RS2(virtual_register.getRegisterValue(idex.RS2));
     }
     else
     {
         idex.change_RS2(idex.IMM);
     }
-
+    if((std::string(1, idex.CW[6])) == "1")
+    virtual_register.setRegisterDirtyBit(idex.RDI, 1);
+    ifid.change_stall(false);
     idex.change_is_empty(false);
 }
 
-void ThirdStage(EXMO &exmo, IDEX idex, int &program_counter, int size)
+void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid,bool &program_counter_valid, int &program_counter, int size)
 {
-    if (idex.is_empty)
+    if (exmo.stall || idex.is_empty)
     {
         return;
     }
@@ -410,19 +446,24 @@ void ThirdStage(EXMO &exmo, IDEX idex, int &program_counter, int size)
     if (((std::string(1, idex.CW[8])) == "1") && ALU_ZERO_FLAG)
     {
         program_counter = idex.J_DPC - 1;
+        ifid.change_is_empty(true);
+        idex.change_is_empty(true);
+        program_counter_valid = false;
     }
     if (program_counter < 0 || program_counter >= size)
     {
         cout << red << "ERROR : Invalid Branch/Jump Address" << def << endl;
+        return;
     }
     exmo.change_CW(idex.CW);
     exmo.change_RS2VAL(idex.RS2);
     exmo.change_is_empty(false);
+    idex.change_stall(false);
 }
 
-void FourthStage(MOWB &mowb, EXMO exmo)
+void FourthStage(MOWB &mowb, EXMO &exmo)
 {
-    if (exmo.is_empty)
+    if (mowb.stall || exmo.is_empty)
     {
         return;
     }
@@ -437,7 +478,11 @@ void FourthStage(MOWB &mowb, EXMO exmo)
     mowb.change_CW(exmo.CW);
     mowb.change_ALUOUT(exmo.ALUOUT);
     mowb.change_RDI(exmo.RDI);
+    // if (((std::string(1, exmo.CW[8])) == "1")) {
+
+    // }
     mowb.change_is_empty(false);
+    exmo.change_stall(false);
 }
 
 void FifthStage(MOWB mowb)
@@ -457,6 +502,8 @@ void FifthStage(MOWB mowb)
             virtual_register.setRegisterValue(mowb.RDI, mowb.ALUOUT);
         }
     }
+    virtual_register.setRegisterDirtyBit(mowb.RDI, 0);
+    mowb.change_stall(false);
 }
 // ===================================================================================
 // ======================               Main                    ======================
@@ -493,27 +540,33 @@ int main()
     inputFile.close();
     instructionVector.pop_back();
     int extra_instructions = 1;
+    bool program_counter_valid = true;
 
     for (int program_counter = 0; program_counter < instructionVector.size() + 4; program_counter++)
     {
-        if (program_counter < instructionVector.size())
+        if (!program_counter_valid)
         {
-            FifthStage(mowb);
-            FourthStage(mowb, exmo);
-            ThirdStage(exmo, idex, program_counter, instructionVector.size());
-            SecondStage(idex, program_counter, ifid);
-            FirstStage(ifid, instructionVector[program_counter], program_counter);
-        }
-        else
-        {
-            FifthStage(mowb);
-            FourthStage(mowb, exmo);
-            int temp1 = program_counter - extra_instructions;
-            ThirdStage(exmo, idex, temp1, instructionVector.size());
-            program_counter = temp1 + extra_instructions;
-            SecondStage(idex, program_counter - extra_instructions, ifid);
-            FirstStage(ifid, instructionVector[program_counter - extra_instructions], program_counter - extra_instructions);
-            extra_instructions++;
+            program_counter--;
+        } else {
+            if (program_counter < instructionVector.size())
+            {
+                FifthStage(mowb);
+                FourthStage(mowb, exmo);
+                ThirdStage(exmo, idex, ifid, program_counter_valid, program_counter, instructionVector.size());
+                SecondStage(idex, program_counter, ifid);
+                FirstStage(ifid, instructionVector[program_counter], program_counter);
+            }
+            else
+            {
+                FifthStage(mowb);
+                FourthStage(mowb, exmo);
+                int temp1 = program_counter - extra_instructions;
+                ThirdStage(exmo, idex, ifid, program_counter_valid, temp1, instructionVector.size());
+                program_counter = temp1 + extra_instructions;
+                SecondStage(idex, program_counter - extra_instructions, ifid);
+                FirstStage(ifid, instructionVector[program_counter - extra_instructions], program_counter - extra_instructions);
+                extra_instructions++;
+            }
         }
     }
     cout << green << "SUCCESS : SIMULATOR RAN SUCCESSFULLY" << def << endl;
