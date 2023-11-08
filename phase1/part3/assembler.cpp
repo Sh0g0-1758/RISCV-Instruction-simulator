@@ -262,7 +262,7 @@ int main()
     fstream code_file;
     // code_file.open("./pipeline_test.s", ios::in);
     // code_file.open("./test.s", ios::in);
-    code_file.open("./data_hazard.s", ios::in);
+    code_file.open("./test.s", ios::in);
 
     vector<string> RISCV_CODE;
     vector<token> TOKENS;
