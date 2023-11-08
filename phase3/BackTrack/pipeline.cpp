@@ -26,18 +26,6 @@ const Color::Modifier cyan(Color::FG_CYAN);
 // instruction execution
 Memory virtual_memory;
 Registers virtual_register;
-// int program_counter = 0;
-// string ControlWord;
-// bool ALU_ZERO_FLAG;
-// int ALURESULT;
-// int LDRESULT;
-// int BRANCH_PROGRAM_COUNTER;
-
-// // Parallel processing to simulate pipeline
-// const int numThreads = 5;
-// std::mutex mutex;
-// std::condition_variable cv;
-// int currentThread = 0;
 
 // ===================================================================================
 // ======================     Intermediate Pipeline classes     ======================
