@@ -26,18 +26,6 @@ const Color::Modifier cyan(Color::FG_CYAN);
 // instruction execution
 Memory virtual_memory;
 Registers virtual_register;
-// int program_counter = 0;
-// string ControlWord;
-// bool ALU_ZERO_FLAG;
-// int ALURESULT;
-// int LDRESULT;
-// int BRANCH_PROGRAM_COUNTER;
-
-// // Parallel processing to simulate pipeline
-// const int numThreads = 5;
-// std::mutex mutex;
-// std::condition_variable cv;
-// int currentThread = 0;
 
 // ===================================================================================
 // ======================     Intermediate Pipeline classes     ======================
@@ -49,7 +37,6 @@ public:
     int DPC = 0;
     std::string IR = "";
     bool is_empty = true;
-    // bool stall = false;
 
     void change_DPC(int val)
     {
@@ -63,10 +50,6 @@ public:
     {
         is_empty = val;
     }
-    // void change_stall(bool val)
-    // {
-    //     stall = val;
-    // }
 };
 
 class IDEX
@@ -517,7 +500,6 @@ void FourthStage(MOWB &mowb, EXMO exmo, OF &of, bool &program_counter_valid)
         program_counter_valid = true;
     }
     mowb.change_is_empty(false);
-    // 110010000
     if ((std::string(1, mowb.CW[6])) == "1")
     {
         if ((std::string(1, mowb.CW[7])) == "1")
