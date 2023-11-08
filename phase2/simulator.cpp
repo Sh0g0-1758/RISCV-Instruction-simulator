@@ -253,9 +253,13 @@ int main()
         {
             SecondValue = immediate_value;
         }
+        cout << "FirstValue : " << FirstValue << endl;
+        cout << "SecondValue : " << SecondValue << endl;
         string ALU_SELECT = alu_control(ControlWord.substr(2, 2), instructionVector[program_counter].substr(17, 3), instructionVector[program_counter][1]);
         ALURESULT = do_alu_operation(ALU_SELECT, FirstValue, SecondValue);
         ALU_ZERO_FLAG = FirstValue == SecondValue;
+        cout << red << "rs2 value here is : " << rs2 << endl;
+        cout << red << "rs1 value here is : " << rs1 << endl;
         if (ControlWord[4] == '1')
         {
             virtual_memory.addValue(ALURESULT, virtual_register.getRegisterValue(rs2));
