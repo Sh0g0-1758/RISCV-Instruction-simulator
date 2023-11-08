@@ -427,9 +427,7 @@ void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid, bool &program_counter_valid,
     exmo.RDI = idex.RDI;
     if (((std::string(1, idex.CW[8])) == "1") && ALU_ZERO_FLAG)
     {
-        program_counter = idex.J_DPC - 2;
-        // ifid.change_is_empty(true);
-        // idex.change_is_empty(true);
+        program_counter = idex.J_DPC - 1;
         program_counter_valid = false;
     }
     if (program_counter < 0 || program_counter >= size)
@@ -526,9 +524,6 @@ int main()
     {
         if (!program_counter_valid)
         {
-            cout << red << "this is a branch instruction, please dont mind thius " << def << endl;
-            cout << program_counter << endl;
-            cout << instructionVector.size() << endl;
             ifid = IFID();
             idex = IDEX();
             program_counter_valid = true;
