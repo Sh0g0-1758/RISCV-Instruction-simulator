@@ -93,6 +93,7 @@ int find_immediate_value(string imm1, string imm2, string opcode)
         }
         bitset<32> jump(imm2[4] + imm1.substr(1, 6) + imm2.substr(0, 4));
         int temp_number = static_cast<int>(jump.to_ulong());
+        
         if (negative_flag)
         {
             return (0 - temp_number);
