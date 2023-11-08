@@ -80,7 +80,6 @@ public:
     string FUNC = "";
     int RDI = 0;
     bool is_empty = true;
-    bool stall = false;
 
     void change_J_DPC(int val)
     {
@@ -114,10 +113,6 @@ public:
     {
         is_empty = val;
     }
-    void change_stall(bool val)
-    {
-        stall = val;
-    }
 };
 
 class EXMO
@@ -128,7 +123,6 @@ public:
     int RS2VAL = 0;
     int RDI = 0;
     bool is_empty = true;
-    bool stall = false;
     void change_CW(std::string val)
     {
         CW = val;
@@ -149,10 +143,6 @@ public:
     {
         is_empty = val;
     }
-    void change_stall(bool val)
-    {
-        stall = val;
-    }
 };
 
 class MOWB
@@ -163,7 +153,6 @@ public:
     int ALUOUT = 0;
     int RDI = 0;
     bool is_empty = true;
-    bool stall = false;
     void change_RDI(int val)
     {
         RDI = val;
@@ -183,10 +172,6 @@ public:
     void change_is_empty(bool val)
     {
         is_empty = val;
-    }
-    void change_stall(bool val)
-    {
-        stall = val;
     }
 };
 
@@ -376,6 +361,7 @@ int do_alu_operation(string alu_select, int val1, int val2)
 
 void FirstStage(IFID &ifid, string instruction, int program_counter)
 {
+    cout << red << "First Stage " << def << endl;
     if (ifid.stall)
     {
         return;
@@ -387,7 +373,8 @@ void FirstStage(IFID &ifid, string instruction, int program_counter)
 
 void SecondStage(IDEX &idex, int program_counter, IFID &ifid)
 {
-    if (idex.stall || ifid.is_empty)
+    cout << red << "Second Stage " << def << endl;
+    if (ifid.is_empty)
     {
         return;
     }
@@ -402,42 +389,58 @@ void SecondStage(IDEX &idex, int program_counter, IFID &ifid)
     idex.change_J_DPC((idex.IMM / 4) + program_counter);
     idex.change_FUNC(ifid.IR.substr(17, 3) + ifid.IR[1]);
 
+    cout << blue << "RS2 in Second Stage is  : " << idex.RS2 << def << endl;
+    cout << blue << "RS1 in Second Stage is  : " << idex.RS1 << def << endl;
+
     if ((std::string(1, idex.CW[0])) == "1")
     {
         if (virtual_register.getRegisterDirtyBit(idex.RS1) == 1)
         {
+            cout << blue << idex.RS1 << " is dirty" << def << endl;
             ifid.change_stall(true);
+            return;
+        }
+        if (virtual_register.getRegisterDirtyBit(idex.RS2) == 1)
+        {
+            cout << blue << idex.RS2 << " is dirty" << def << endl;
+            ifid.change_stall(true);
+            cout << red << ifid.stall << def << endl;
             return;
         }
         idex.change_RS1(virtual_register.getRegisterValue(idex.RS1));
-    }
-    if ((std::string(1, idex.CW[1])) == "0")
-    {
-        if (virtual_register.getRegisterDirtyBit(idex.RS2) == 1)
-        {
-            ifid.change_stall(true);
-            return;
-        }
         idex.change_RS2(virtual_register.getRegisterValue(idex.RS2));
     }
-    else
+    // Check here brooooooooooooo pls
+    // if ((std::string(1, idex.CW[1])) == "1")
+    // {
+    //     idex.change_SecondValue(idex.IMM);
+    // }
+    // cout << red << "FirstValue : " << idex.RS1 << endl;
+    // cout << red << "SecondValue : " << idex.RS2 << endl;
+    if ((std::string(1, idex.CW[6])) == "1")
     {
-        idex.change_RS2(idex.IMM);
+        virtual_register.setRegisterDirtyBit(idex.RDI, 1);
     }
-    if((std::string(1, idex.CW[6])) == "1")
-    virtual_register.setRegisterDirtyBit(idex.RDI, 1);
     ifid.change_stall(false);
     idex.change_is_empty(false);
 }
 
-void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid,bool &program_counter_valid, int &program_counter, int size)
+void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid, bool &program_counter_valid, int &program_counter, int size)
 {
-    if (exmo.stall || idex.is_empty)
+    cout << red << "Third Stage " << def << endl;
+    if (idex.is_empty)
     {
         return;
     }
     int FirstValue = idex.RS1;
     int SecondValue = idex.RS2;
+    exmo.change_RS2VAL(SecondValue);
+    cout << blue << "RS2 val in third stage is : " << SecondValue << def << endl;
+    if ((std::string(1, idex.CW[1])) == "1")
+    {
+
+        SecondValue = idex.IMM;
+    }
     string ALU_SELECT = alu_control(idex.CW.substr(2, 2), idex.FUNC.substr(0, idex.FUNC.length() - 1), idex.FUNC[idex.FUNC.length() - 1]);
     int ALURESULT = do_alu_operation(ALU_SELECT, FirstValue, SecondValue);
     bool ALU_ZERO_FLAG = FirstValue == SecondValue;
@@ -452,24 +455,26 @@ void ThirdStage(EXMO &exmo, IDEX &idex, IFID &ifid,bool &program_counter_valid, 
     }
     if (program_counter < 0 || program_counter >= size)
     {
+        cout << "erroneous program counter" << program_counter << endl;
         cout << red << "ERROR : Invalid Branch/Jump Address" << def << endl;
         return;
     }
     exmo.change_CW(idex.CW);
-    exmo.change_RS2VAL(idex.RS2);
     exmo.change_is_empty(false);
-    idex.change_stall(false);
 }
 
-void FourthStage(MOWB &mowb, EXMO &exmo)
+void FourthStage(MOWB &mowb, EXMO &exmo, bool &program_counter_valid)
 {
-    if (mowb.stall || exmo.is_empty)
+    cout << red << "Fourth Stage" << def << endl;
+    if (exmo.is_empty)
     {
         return;
     }
     if ((std::string(1, exmo.CW[4])) == "1")
     {
-        virtual_memory.addValue(exmo.ALUOUT, virtual_register.getRegisterValue(exmo.RS2VAL));
+        cout << "RS2VAL : " << exmo.RS2VAL << endl;
+        cout << "ALUOUT : " << exmo.ALUOUT << endl;
+        virtual_memory.addValue(exmo.ALUOUT, exmo.RS2VAL);
     }
     if ((std::string(1, exmo.CW[5])) == "1")
     {
@@ -478,15 +483,16 @@ void FourthStage(MOWB &mowb, EXMO &exmo)
     mowb.change_CW(exmo.CW);
     mowb.change_ALUOUT(exmo.ALUOUT);
     mowb.change_RDI(exmo.RDI);
-    // if (((std::string(1, exmo.CW[8])) == "1")) {
-
-    // }
+    if (((std::string(1, exmo.CW[8])) == "1"))
+    {
+        program_counter_valid = true;
+    }
     mowb.change_is_empty(false);
-    exmo.change_stall(false);
 }
 
-void FifthStage(MOWB mowb)
+void FifthStage(MOWB mowb, IFID &ifid)
 {
+    cout << red << "Fifth Stage " << def << endl;
     if (mowb.is_empty)
     {
         return;
@@ -503,7 +509,7 @@ void FifthStage(MOWB mowb)
         }
     }
     virtual_register.setRegisterDirtyBit(mowb.RDI, 0);
-    mowb.change_stall(false);
+    ifid.change_stall(false);
 }
 // ===================================================================================
 // ======================               Main                    ======================
@@ -544,22 +550,33 @@ int main()
 
     for (int program_counter = 0; program_counter < instructionVector.size() + 4; program_counter++)
     {
-        if (!program_counter_valid)
+        // if (!program_counter_valid)
+        // {
+        //     program_counter--;
+        // }
+        // else
         {
-            program_counter--;
-        } else {
             if (program_counter < instructionVector.size())
             {
-                FifthStage(mowb);
-                FourthStage(mowb, exmo);
+                if (ifid.stall)
+                {
+                    program_counter--;
+                }
+                FifthStage(mowb, ifid);
+                FourthStage(mowb, exmo, program_counter_valid);
                 ThirdStage(exmo, idex, ifid, program_counter_valid, program_counter, instructionVector.size());
                 SecondStage(idex, program_counter, ifid);
                 FirstStage(ifid, instructionVector[program_counter], program_counter);
             }
             else
             {
-                FifthStage(mowb);
-                FourthStage(mowb, exmo);
+                if (ifid.stall)
+                {
+                    program_counter--;
+                    extra_instructions--;
+                }
+                FifthStage(mowb, ifid);
+                FourthStage(mowb, exmo, program_counter_valid);
                 int temp1 = program_counter - extra_instructions;
                 ThirdStage(exmo, idex, ifid, program_counter_valid, temp1, instructionVector.size());
                 program_counter = temp1 + extra_instructions;
@@ -568,6 +585,7 @@ int main()
                 extra_instructions++;
             }
         }
+        cout << "program_counter : " << program_counter << endl;
     }
     cout << green << "SUCCESS : SIMULATOR RAN SUCCESSFULLY" << def << endl;
     cout << endl;
