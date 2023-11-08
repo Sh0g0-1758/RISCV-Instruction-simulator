@@ -21,9 +21,30 @@ void Registers::setRegisterValue(int index, uint32_t value)
     }
 }
 
+void Registers::setRegisterDirtyBit(int index, uint32_t value)
+{
+    if (index >= 0 && index < 32)
+    {
+        registerDirtyBit[index] = value;
+    }
+}
+
 uint32_t Registers::getRegisterValue(int index)
 {
-    return registerArray[index];
+    if (index >= 0 && index < 32) {
+        return registerArray[index];
+    } else {
+        return 0;
+    }
+}
+
+uint32_t Registers::getRegisterDirtyBit(int index)
+{
+    if (index >= 0 && index < 32) {
+        return registerDirtyBit[index];
+    } else {
+        return 0;
+    }
 }
 
 void Registers::PrintRegisters()
