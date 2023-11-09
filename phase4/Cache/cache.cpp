@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 #include <utility>
-#include "../Tools/Color/Color.hpp"
+#include "../../Tools/Color/Color.hpp"
 #include <iomanip>
 
 // namespaces
