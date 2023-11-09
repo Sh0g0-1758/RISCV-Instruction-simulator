@@ -76,16 +76,21 @@ struct CacheBlock
 class SetAssociativeCache
 {
 public:
+    // constructor
     SetAssociativeCache(int numSets, int numWays) : numSets(numSets), numWays(numWays)
     {
         cache.resize(numSets, std::vector<CacheBlock>(numWays));
         lruOrder.resize(numSets, std::deque<int>(numWays, -1));
     }
 
+    // Function to load memory in the cache
+
     void LoadMemory(const std::vector<std::array<int, 64>> &data)
     {
         memory = data;
     }
+
+    // Send a data read request to the CPU
 
     int CPU_Read_Request(int index, int tag, int blockOffset)
     {
@@ -145,6 +150,8 @@ public:
         CPU_Read_Request(index, tag, blockOffset);
         return 0;
     }
+
+    // Send a data Write Request to the CPU
 
     void CPUWriteRequest(int index, int tag, int blockOffset, int newData)
     {
@@ -206,6 +213,9 @@ public:
         CPUWriteRequest(index, tag, blockOffset, newData);
     }
 
+    // Send a data read request to the memory
+    // And add the data when it comes back into the Miss Status Holding Register
+
     void Memory_Read_Request(int index, int tag)
     {
         int row = index * 16 + tag;
@@ -214,12 +224,17 @@ public:
         Miss_Status_Holding_Register.push_back({start_time, {index, {tag, data}}});
     }
 
+    // Update the LRU order, special care to be taken care of the 0 that is added by default
+    // when initialising the deque
+
     void UpdateLRUOrder(std::deque<int> &order, int tag)
     {
         order.erase(std::remove(order.begin(), order.end(), -1), order.end());
         order.erase(std::remove(order.begin(), order.end(), tag), order.end());
         order.push_front(tag);
     }
+
+    // Allocate a block in the cache and also take care of the eviction of the block
 
     int AllocateBlock(int index, int tag)
     {
@@ -900,19 +915,27 @@ int main()
             };
             if (state == 0)
             {
-                cout << blue << "State : (" << "INVALID" << ")" << def << " -> ";
+                cout << blue << "State : ("
+                     << "INVALID"
+                     << ")" << def << " -> ";
             }
             else if (state == 1)
             {
-                cout << blue << "State : (" << "VALID" << ")" << def << " -> ";
+                cout << blue << "State : ("
+                     << "VALID"
+                     << ")" << def << " -> ";
             }
             else if (state == 2)
             {
-                cout << blue << "State : (" << "MODIFIED" << ")" << def << " -> ";
+                cout << blue << "State : ("
+                     << "MODIFIED"
+                     << ")" << def << " -> ";
             }
             else if (state == 3)
             {
-                cout << blue << "State : (" << "MISS_PENDING" << ")" << def << " -> ";
+                cout << blue << "State : ("
+                     << "MISS_PENDING"
+                     << ")" << def << " -> ";
             }
             cout << green << "Data : (" << def;
             for (int k = 0; k < 64; k++)
