@@ -14,4 +14,5 @@
 10) https://stackoverflow.com/questions/2616906/how-do-i-output-coloured-text-to-a-linux-terminal
 11) https://stackoverflow.com/questions/24786922/difference-between-in-oder-and-out-of-order-execution-in-arm-architecture#:~:text=An%20in%2Dorder%20implementation%20would,to%20be%20delivered%20from%20memory.
 12) https://luplab.gitlab.io/rvcodecjs/
-13) 
+13) http://nanapro.org/en-us/documentation/
+14) https://www.electronjs.org/docs/latest/tutorial/ipc
